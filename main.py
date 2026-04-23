@@ -22,6 +22,10 @@ app.add_middleware(
 def root():
     return {"message": "Backend is running successfully"}
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 # ================= Upload CSV =================
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...)):
