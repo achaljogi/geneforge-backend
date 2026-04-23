@@ -9,22 +9,29 @@ from io import BytesIO
 
 app = FastAPI(title="Gene Expression Analysis API")
 
+
 # ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://geneforge-frontend.onrender.com",
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return {"message": "Backend is running successfully"}
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 # ================= Upload CSV =================
 @app.post("/upload-csv")
@@ -45,6 +52,7 @@ async def upload_csv(file: UploadFile = File(...)):
     except Exception as e:
         return {"error": str(e)}
 
+
 # ================= Differential Expression =================
 @app.post("/differential-expression")
 async def differential_expression(
@@ -63,14 +71,14 @@ async def differential_expression(
     control_data = df[control_cols].astype(float)
     treat_data = df[treat_cols].astype(float)
 
-    # ===== Mean expression =====
+    # Mean expression
     control_mean = control_data.mean(axis=1)
     treat_mean = treat_data.mean(axis=1)
 
-    # ===== Log2 Fold Change =====
+    # Log2 Fold Change
     log2fc = np.log2((treat_mean + 1e-6) / (control_mean + 1e-6))
 
-    # ===== T-Test =====
+    # T-Test
     pvalues = ttest_ind(
         control_data,
         treat_data,
@@ -78,10 +86,10 @@ async def differential_expression(
         equal_var=False
     ).pvalue
 
-    # ===== FDR correction =====
+    # FDR correction
     adj_pvalues = multipletests(pvalues, method="fdr_bh")[1]
 
-    # ===== Volcano Plot Y Axis =====
+    # Volcano Y-axis
     neg_log10_pvalue = -np.log10(pvalues + 1e-10)
 
     result_df = pd.DataFrame({
@@ -124,10 +132,17 @@ async def top_genes_heatmap(
     df["TreatMean"] = treat_data.mean(axis=1)
 
     # Log2 Fold Change
-    df["log2FC"] = np.log2((df["TreatMean"] + 1e-6) / (df["ControlMean"] + 1e-6))
+    df["log2FC"] = np.log2(
+        (df["TreatMean"] + 1e-6) /
+        (df["ControlMean"] + 1e-6)
+    )
 
-    # Sort by absolute fold change
-    df = df.reindex(df["log2FC"].abs().sort_values(ascending=False).index)
+    # Sort by absolute FC
+    df = df.reindex(
+        df["log2FC"].abs().sort_values(
+            ascending=False
+        ).index
+    )
 
     # Select top genes
     top = df.head(int(top_genes))
